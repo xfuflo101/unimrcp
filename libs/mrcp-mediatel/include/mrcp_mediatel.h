@@ -13,7 +13,7 @@
 namespace mrcp {
 
 
-void initialize();
+bool initialize();
 
 void terminate();
 
