@@ -27,11 +27,45 @@ typedef struct __MrcpCommon {
 } MrcpCommon;
 
 
+typedef struct __MrcpParserWrapper {
+
+    __MrcpParserWrapper(apr_pool_t * pool, mrcp_parser_t * parser):
+      _pool(pool), _parser(parser)
+    {}
+
+    ~__MrcpParserWrapper() {
+        /* destroy APR pool */
+        apr_pool_destroy(_pool);
+    }
+
+    apr_pool_t * _pool;
+    mrcp_parser_t * _parser;
+
+} MrcpParserWrapper;
+
+
+typedef struct __MrcpGeneratorWrapper {
+
+    __MrcpGeneratorWrapper(apr_pool_t * pool, mrcp_generator_t * generator):
+      _pool(pool), _generator(generator)
+    {}
+
+    ~__MrcpGeneratorWrapper() {
+        /* destroy APR pool */
+        apr_pool_destroy(_pool);
+    }
+
+    apr_pool_t * _pool;
+    mrcp_generator_t * _generator;
+
+} MrcpGeneratorWrapper;
+
+
 static std::mutex s_mrcp_mutex;
 static std::unique_ptr<MrcpCommon> s_mrcp_common;
 
 
-namespace mrcp {
+////////////////////////////////////////////////////////////////////////////////
 
 
 static
@@ -80,56 +114,6 @@ std::unique_ptr<MrcpCommon> init_mrcp_common_locked() {
 }
 
 
-bool initialize() {
-
-    std::lock_guard<std::mutex> lock(s_mrcp_mutex);
-
-    if (!s_mrcp_common)
-        s_mrcp_common = init_mrcp_common_locked();
-
-    return !!s_mrcp_common;
-}
-
-
-void terminate() {
-
-    std::lock_guard<std::mutex> lock(s_mrcp_mutex);
-
-    std::unique_ptr<MrcpCommon> tmp(s_mrcp_common.release());
-
-    if (tmp) {
-
-        mrcp_resource_factory_destroy(tmp->_factory);
-
-        apt_log_instance_destroy();
-
-        /* destroy APR pool */
-        apr_pool_destroy(tmp->_pool);
-        /* APR global termination */
-        apr_terminate();
-    }
-}
-
-
-typedef struct __MrcpParserWrapper {
-
-    __MrcpParserWrapper(apr_pool_t * pool, mrcp_parser_t * parser):
-      _pool(pool), _parser(parser)
-    {}
-
-    ~__MrcpParserWrapper() {
-        /* destroy APR pool */
-        apr_pool_destroy(_pool);
-    }
-
-    apr_pool_t * _pool;
-    mrcp_parser_t * _parser;
-
-} MrcpParserWrapper;
-
-////////////////////////////////////////////////////////////////////////////////
-
-
 static
 std::unique_ptr<MrcpParserWrapper> createMrcpParser() {
     std::lock_guard<std::mutex> lock(s_mrcp_mutex);
@@ -144,23 +128,6 @@ std::unique_ptr<MrcpParserWrapper> createMrcpParser() {
 
     return std::unique_ptr<MrcpParserWrapper>();
 }
-
-
-typedef struct __MrcpGeneratorWrapper {
-
-    __MrcpGeneratorWrapper(apr_pool_t * pool, mrcp_generator_t * generator):
-      _pool(pool), _generator(generator)
-    {}
-
-    ~__MrcpGeneratorWrapper() {
-        /* destroy APR pool */
-        apr_pool_destroy(_pool);
-    }
-
-    apr_pool_t * _pool;
-    mrcp_generator_t * _generator;
-
-} MrcpGeneratorWrapper;
 
 
 static
@@ -179,14 +146,10 @@ std::unique_ptr<MrcpGeneratorWrapper> createMrcpGenerator() {
 }
 
 
-
 ////////////////////////////////////////////////////////////////////////////////
 
 
-////////////////////////////////////////////////////////////////////////////////
-
-
-////////////////////////////////////////////////////////////////////////////////
+namespace mrcp {
 
 
 static
@@ -226,8 +189,35 @@ bool parseMrcpMessageHeader(mrcp_message_t * message, MrcpMessage & mrcpMessage)
 }
 
 
+bool initialize() {
+
+    std::lock_guard<std::mutex> lock(s_mrcp_mutex);
+
+    if (!s_mrcp_common)
+        s_mrcp_common = init_mrcp_common_locked();
+
+    return !!s_mrcp_common;
+}
 
 
+void terminate() {
+
+    std::lock_guard<std::mutex> lock(s_mrcp_mutex);
+
+    std::unique_ptr<MrcpCommon> tmp(s_mrcp_common.release());
+
+    if (tmp) {
+
+        mrcp_resource_factory_destroy(tmp->_factory);
+
+        apt_log_instance_destroy();
+
+        /* destroy APR pool */
+        apr_pool_destroy(tmp->_pool);
+        /* APR global termination */
+        apr_terminate();
+    }
+}
 
 
 bool decode(const std::string & str, MrcpMessage & mrcpMessage) {
@@ -254,13 +244,13 @@ bool decode(const std::string & str, MrcpMessage & mrcpMessage) {
     parseMrcpMessageStartLine(message, mrcpMessage);
     parseMrcpMessageHeader(message, mrcpMessage);
 
-
-
+    return true;
 }
 
 
 bool encode(const MrcpMessage & mrcpMessage, std::string & str) {
 
+    return true;
 }
 
 
