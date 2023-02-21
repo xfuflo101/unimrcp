@@ -7,8 +7,13 @@ AM_CPPFLAGS              = -I$(top_srcdir)/libs/mrcp/include \
                            -I$(top_srcdir)/libs/apr-toolkit/include \
                            $(UNIMRCP_APR_INCLUDES)
 
-noinst_LTLIBRARIES       = libmrcp-mediatel.la
+noinst_PROGRAMS           = mrcp-mediatel
+
+mrcp-mediatel_LDADD       = $(top_builddir)/libs/mrcp/libmrcp.la \
+                            $(top_builddir)/libs/apr-toolkit/libaprtoolkit.la \
+                            $(UNIMRCP_APR_LIBS)
 
 include_HEADERS          = include/mrcp_mediatel.h
 
-libmrcp_la_SOURCES       = src/mrcp_mediatel.cpp
+mrcp-mediatel_SOURCES    = src/main.cpp \
+                           src/mrcp_mediatel.cpp
