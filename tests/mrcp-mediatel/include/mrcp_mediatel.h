@@ -7,7 +7,8 @@
  * @brief Access to MRCP codec functions of Unimrcp
  */
 
-#include <memory>
+#include <string>
+#include <vector>
 
 
 namespace mrcp {
@@ -124,7 +125,7 @@ typedef struct __MrcpChannelId {
 
 typedef struct __MrcpHeaderField {
 
-    MrcpHeaderField(const char * name_start, std::size_t name_len, const char * value_start, std::size_t value_len):
+    __MrcpHeaderField(const char * name_start, std::size_t name_len, const char * value_start, std::size_t value_len):
       name(name_start, name_len), value(value_start, value_len)
     {}
 

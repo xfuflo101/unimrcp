@@ -59,7 +59,7 @@ endif ()
 # Shared modules (plug-ins) should not have any prefix set
 set (CMAKE_SHARED_MODULE_PREFIX "")
 
-# Pertain RPATH upon installation 
+# Pertain RPATH upon installation
 set (CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 # Add library directory to RPATH
@@ -153,6 +153,7 @@ if (ENABLE_TEST_SUITES)
 add_subdirectory (tests/apttest)
 add_subdirectory (tests/mpftest)
 add_subdirectory (tests/mrcptest)
+add_subdirectory (tests/mrcp-mediatel)
 add_subdirectory (tests/rtsptest)
 add_subdirectory (tests/strtablegen)
 endif ()
