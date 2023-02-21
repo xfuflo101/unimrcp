@@ -101,7 +101,7 @@ typedef struct __MrcpStartLine {
     /** Unique identifier among client and server */
     std::size_t      request_id;
     // /** MRCP method name */
-    // apt_str_t            method_name;
+    std::string      method_name;
     // /** MRCP method id (associated with method name) */
     // mrcp_method_id       method_id;
     /** Success or failure or other status of the request */
@@ -114,46 +114,35 @@ typedef struct __MrcpStartLine {
 
 /** MRCP channel-identifier */
 typedef struct __MrcpChannelId {
-	/** Unambiguous string identifying the MRCP session */
-	std::string session_id;
-	/** MRCP resource name */
-	std::string resource_name;
+    /** Unambiguous string identifying the MRCP session */
+    std::string session_id;
+    /** MRCP resource name */
+    std::string resource_name;
 
 } MrcpChannelId;
 
 
-typedef struct __HeaderField {
-	/** Name of the header field */
-	std::string  name;
-	/** Value of the header field */
-	std::string  value;
+typedef struct __MrcpHeaderField {
 
-	/** Numeric identifier associated with name */
-	std::size_t id;
+    MrcpHeaderField(const char * name_start, std::size_t name_len, const char * value_start, std::size_t value_len):
+      name(name_start, name_len), value(value_start, value_len)
+    {}
 
-} HeaderField;
+    /** Name of the header field */
+    std::string  name;
+    /** Value of the header field */
+    std::string  value;
 
-
-/** MRCP message-header */
-typedef struct __MrcpMessageHeader {
-    // /** MRCP generic-header */
-    // mrcp_header_accessor_t generic_header_accessor;
-    // /** MRCP resource specific header */
-    // mrcp_header_accessor_t resource_header_accessor;
-
-    /** Header section (collection of header fields)*/
-    std::vector<HeaderField> header_section;
-
-} MrcpMessageHeader;
+} MrcpHeaderField;
 
 
-typedef struct __MrcpResource {
-	/** MRCP resource identifier */
-	std::size_t id;
-	/** MRCP resource name */
-	std::string name;
-
-} MrcpResource;
+// typedef struct __MrcpResource {
+//     /** MRCP resource identifier */
+//     std::size_t id;
+//     /** MRCP resource name */
+//     std::string name;
+//
+// } MrcpResource;
 
 
 typedef struct __MrcpMessage {
@@ -162,13 +151,13 @@ typedef struct __MrcpMessage {
     /** Channel-identifier of MRCP message */
     MrcpChannelId     channel_id;
     /** Header of MRCP message */
-    MrcpMessageHeader header;
+    std::vector<MrcpHeaderField> header;
     /** Body of MRCP message */
     std::string       body;
 
-    /** Associated MRCP resource */
-    // const mrcp_resource_t *resource;
-    MrcpResource resource;
+    // /** Associated MRCP resource */
+    // // const mrcp_resource_t *resource;
+    // MrcpResource resource;
 
 } MrcpMessage;
 
