@@ -11,19 +11,4 @@ noinst_LTLIBRARIES       = libmrcp-mediatel.la
 
 include_HEADERS          = include/mrcp_mediatel.h
 
-libmrcp_la_SOURCES       = message/src/mrcp_start_line.c \
-                           message/src/mrcp_header_accessor.c \
-                           message/src/mrcp_generic_header.c \
-                           message/src/mrcp_header.c \
-                           message/src/mrcp_message.c \
-                           control/src/mrcp_resource_factory.c \
-                           control/src/mrcp_resource_loader.c \
-                           control/src/mrcp_stream.c \
-                           resources/src/mrcp_synth_header.c \
-                           resources/src/mrcp_synth_resource.c \
-                           resources/src/mrcp_recog_header.c \
-                           resources/src/mrcp_recog_resource.c \
-                           resources/src/mrcp_recorder_header.c \
-                           resources/src/mrcp_recorder_resource.c \
-                           resources/src/mrcp_verifier_header.c \
-                           resources/src/mrcp_verifier_resource.c
+libmrcp_la_SOURCES       = src/mrcp_mediatel.cpp
