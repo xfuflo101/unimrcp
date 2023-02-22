@@ -74,7 +74,7 @@ std::unique_ptr<MrcpCommon> init_mrcp_common_locked() {
     /* APR global initialization */
     if(apr_initialize() != APR_SUCCESS) {
         apr_terminate();
-        return std::unique_ptr<MrcpCommon>();
+        return {};
     }
 
     std::unique_ptr<MrcpCommon> tmp = std::make_unique<MrcpCommon>();
@@ -83,7 +83,7 @@ std::unique_ptr<MrcpCommon> init_mrcp_common_locked() {
     tmp->_pool = apt_pool_create();
     if(!tmp->_pool) {
         apr_terminate();
-        return std::unique_ptr<MrcpCommon>();
+        return {};
     }
 
     /* create singleton logger */
@@ -97,7 +97,7 @@ std::unique_ptr<MrcpCommon> init_mrcp_common_locked() {
         apr_pool_destroy(tmp->_pool);
         /* APR global termination */
         apr_terminate();
-        return std::unique_ptr<MrcpCommon>();
+        return {};
     }
 
     tmp->_factory = mrcp_resource_factory_get(tmp->_resource_loader);
@@ -107,7 +107,7 @@ std::unique_ptr<MrcpCommon> init_mrcp_common_locked() {
         apr_pool_destroy(tmp->_pool);
         /* APR global termination */
         apr_terminate();
-        return std::unique_ptr<MrcpCommon>();
+        return {};
   	}
 
     return tmp;
@@ -126,7 +126,7 @@ std::unique_ptr<MrcpParserWrapper> createMrcpParser() {
         );
     }
 
-    return std::unique_ptr<MrcpParserWrapper>();
+    return {};
 }
 
 
@@ -142,7 +142,7 @@ std::unique_ptr<MrcpGeneratorWrapper> createMrcpGenerator() {
         );
     }
 
-    return std::unique_ptr<MrcpGeneratorWrapper>();
+    return {};
 }
 
 
