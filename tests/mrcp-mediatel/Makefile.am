@@ -6,6 +6,7 @@ AM_CPPFLAGS              = -I$(top_srcdir)/libs/mrcp/include \
                            -I$(top_srcdir)/libs/mrcp/resources/include \
                            -I$(top_srcdir)/libs/apr-toolkit/include \
                            -Iinclude \
+                           -std=c++17 \
                            $(UNIMRCP_APR_INCLUDES)
 
 noinst_PROGRAMS           = mrcp-mediatel

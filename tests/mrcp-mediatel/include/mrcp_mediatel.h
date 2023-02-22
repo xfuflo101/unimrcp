@@ -8,6 +8,7 @@
  */
 
 #include <string>
+#include <ostream>
 #include <vector>
 
 
@@ -161,6 +162,45 @@ typedef struct __MrcpMessage {
     // MrcpResource resource;
 
 } MrcpMessage;
+
+
+template <typename EnumT>
+auto e2i(const EnumT & value)
+    -> typename std::underlying_type<EnumT>::type
+{
+    return static_cast<typename std::underlying_type<EnumT>::type>(value);
+}
+
+
+class MrcpMessageManip {
+public:
+    explicit MrcpMessageManip(const MrcpMessage & msg): _msg(msg)
+    {}
+
+    friend std::ostream & operator<<(std::ostream & o, const MrcpMessageManip & m) {
+        o << "start_line:{"
+              << "message_type:" << e2i(m._msg.start_line.message_type)
+              << ",version:" << e2i(m._msg.start_line.version)
+              << ",length:" << m._msg.start_line.length
+              << ",request_id:" << m._msg.start_line.request_id
+              << ",method_name:" << m._msg.start_line.method_name
+              << ",status_code:" << e2i(m._msg.start_line.status_code)
+              << ",request_state:" << e2i(m._msg.start_line.request_state)
+          << "},channel_id:{"
+              << "session_id:" << m._msg.channel_id.session_id
+              << ",resource_name:" << m._msg.channel_id.resource_name
+          << "},header:{";
+        for (const auto & elem : m._msg.header) {
+            o << "{name:" << elem.name << ",value:" << elem.value << "}";
+        }
+        o << "},body:{" << m._msg.body << "}";
+
+        return o;
+    }
+
+private:
+    const MrcpMessage & _msg;
+};
 
 
 bool decode(const std::string & str, MrcpMessage & mrcpMessage);

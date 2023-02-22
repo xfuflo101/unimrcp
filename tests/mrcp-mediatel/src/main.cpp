@@ -15,6 +15,8 @@
  */
 
 #include <iostream>
+#include <filesystem>
+#include <fstream>
 
 #include "mrcp_mediatel.h"
 
@@ -52,6 +54,39 @@ const char * test_recognize_msg = ""
 "</grammar>"
 ;
 
+// std::vector< std::pair<std::string, std::string> >
+// void
+std::vector< std::pair<std::string, std::string> >
+read_all_files(const std::string & dir_path) {
+    std::vector< std::pair<std::string, std::string> > out_vct;
+
+    for (const auto& entry : std::filesystem::directory_iterator(dir_path)) {
+        const std::filesystem::path & path = entry.path();
+        if (!std::filesystem::is_regular_file(path))
+            continue;
+
+        // std::cout << "TEST: reading file = " << path.filename() << std::endl;
+
+        std::ifstream file(path, std::ios::in | std::ios::binary);
+        if (!file.is_open()) {
+            std::cout << "TEST: READING_ERROR, file is not open, file = " << path.filename() << std::endl;
+            continue;
+        }
+
+        // Read contents
+        out_vct.emplace_back(
+            path.filename(),
+            std::string{std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()}
+        );
+
+        // Close the file
+        file.close();
+    }
+
+    return out_vct;
+}
+
+
 
 int main(int argc, const char * const *argv)
 {
@@ -61,10 +96,22 @@ int main(int argc, const char * const *argv)
         return 0;
     }
 
+    const std::vector< std::pair<std::string, std::string> > & vct(read_all_files("v2"));
 
-    mrcp::MrcpMessage msg;
-    bool res = mrcp::decode(test_recognize_msg, msg);
+    for (const auto & elem : vct) {
+        std::cout << std::endl;
+        std::cout << "TEST: ===============================================" << std::endl;
+        std::cout << "TEST: decoding file = " << elem.first << std::endl;
+        mrcp::MrcpMessage msg;
+        bool res = mrcp::decode(elem.second, msg);
+        std::cout << "TEST: mrcp::decode res = " << std::boolalpha << res << std::endl;
+        std::cout << "TEST: MrcpMessage =\n" << mrcp::MrcpMessageManip(msg) << std::endl;
+    }
 
+    // mrcp::MrcpMessage msg;
+    // bool res = mrcp::decode(test_recognize_msg, msg);
+    // std::cout << "TEST: mrcp::decode res = " << std::boolalpha << res << std::endl;
+    // std::cout << "TEST: MrcpMessage =\n" << mrcp::MrcpMessageManip(msg) << std::endl;
 
     /* final mrcp global termination */
     mrcp::terminate();

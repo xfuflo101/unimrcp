@@ -14,8 +14,8 @@
 #include "mrcp_mediatel.h"
 
 
-const static apt_log_priority_e  s_log_priority(APT_PRIO_WARNING); // APT_PRIO_INFO / APT_PRIO_DEBUG
-const static apt_log_output_e    s_log_output(APT_LOG_OUTPUT_SYSLOG);
+const static apt_log_priority_e  s_log_priority(APT_PRIO_DEBUG); //  APT_PRIO_WARNING / APT_PRIO_INFO / APT_PRIO_DEBUG
+const static apt_log_output_e    s_log_output(APT_LOG_OUTPUT_CONSOLE);  //  APT_LOG_OUTPUT_CONSOLE / APT_LOG_OUTPUT_SYSLOG
 
 
 typedef struct __MrcpCommon {
@@ -189,6 +189,22 @@ bool parseMrcpMessageHeader(mrcp_message_t * message, MrcpMessage & mrcpMessage)
 }
 
 
+static
+bool parseMrcpMessageChannelId(mrcp_message_t * message, MrcpMessage & mrcpMessage) {
+    if (message->channel_id.session_id.buf && message->channel_id.session_id.length)
+        mrcpMessage.channel_id.session_id.assign(
+            message->channel_id.session_id.buf, message->channel_id.session_id.length
+        );
+
+    if (message->channel_id.resource_name.buf && message->channel_id.resource_name.length)
+        mrcpMessage.channel_id.resource_name.assign(
+            message->channel_id.resource_name.buf, message->channel_id.resource_name.length
+        );
+
+    return true;
+}
+
+
 bool initialize() {
 
     std::lock_guard<std::mutex> lock(s_mrcp_mutex);
@@ -242,7 +258,10 @@ bool decode(const std::string & str, MrcpMessage & mrcpMessage) {
         return false;
 
     parseMrcpMessageStartLine(message, mrcpMessage);
+    parseMrcpMessageChannelId(message, mrcpMessage);
     parseMrcpMessageHeader(message, mrcpMessage);
+    if (message->body.buf && message->body.length)
+        mrcpMessage.body.assign(message->body.buf, message->body.length);
 
     return true;
 }
