@@ -214,10 +214,10 @@ private:
 };
 
 
-bool decode(const std::string & str, MrcpMessage & mrcpMessage);
+bool decode(const char * src_buf, std::size_t src_len, MrcpMessage & mrcpMessage);
 
 
-bool encode(const MrcpMessage & mrcpMessage, std::string & str);
+bool encode(const MrcpMessage & mrcpMessage, std::vector<char> & outVec);
 
 
 

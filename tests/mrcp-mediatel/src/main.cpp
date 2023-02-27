@@ -17,6 +17,7 @@
 #include <iostream>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 
 #include "mrcp_mediatel.h"
 
@@ -102,16 +103,20 @@ int main(int argc, const char * const *argv)
         std::cout << std::endl;
         std::cout << "TEST: ===============================================" << std::endl;
         std::cout << "TEST: decoding file = " << elem.first << std::endl;
+        std::cout << elem.second << std::endl;
+        std::cout << "TEST: ---DECODING---" << std::endl;
         mrcp::MrcpMessage msg;
-        bool res = mrcp::decode(elem.second, msg);
+        bool res = mrcp::decode(elem.second.c_str(), elem.second.size(), msg);
         std::cout << "TEST: mrcp::decode res = " << std::boolalpha << res << std::endl;
         std::cout << "TEST: MrcpMessage =\n" << mrcp::MrcpMessageManip(msg) << std::endl;
 
         // encoding
-        std::string resultStr;
-        res = mrcp::encode(msg, resultStr);
-        std::cout << "TEST: ------ encoding" << std::endl;
+        std::vector<char> resultVec;
+        res = mrcp::encode(msg, resultVec);
+        std::cout << "TEST: ---ENCODING---" << std::endl;
         std::cout << "TEST: mrcp::encode res = " << std::boolalpha << res << std::endl;
+        if (res)
+            std::copy(resultVec.cbegin(), resultVec.cend(), std::ostream_iterator<char>(std::cout, ""));        
     }
 
     // mrcp::MrcpMessage msg;
