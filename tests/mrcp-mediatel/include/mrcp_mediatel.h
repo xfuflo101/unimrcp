@@ -75,15 +75,11 @@ enum class MrcpVersion {
 	MRCP_VERSION_2 = 2         /**< MRCPv2 (draft-ietf-speechsc-mrcpv2-20) */
 };
 
-/** Enumeration of MRCP resource types */
-enum class MrcpResourceType {
-	MRCP_SYNTHESIZER_RESOURCE, /**< Synthesizer resource */
-	MRCP_RECOGNIZER_RESOURCE,  /**< Recognizer resource */
-	MRCP_RECORDER_RESOURCE,    /**< Recorder resource */
-	MRCP_VERIFIER_RESOURCE,    /**< Verifier resource */
 
-	MRCP_RESOURCE_TYPE_COUNT   /**< Number of resources */
-};
+constexpr std::string_view MRCP_SYNTHESIZER_RESOURCE_SV {"speechsynth"};  /**< Synthesizer resource string */
+constexpr std::string_view MRCP_RECOGNIZER_RESOURCE_SV  {"speechrecog"};  /**< Recognizer resource string */
+constexpr std::string_view MRCP_RECORDER_RESOURCE_SV    {"recorder"};     /**< Recorder resource string */
+constexpr std::string_view MRCP_VERIFIER_RESOURCE_SV    {"speakverify"};  /**< Verifier resource string */
 
 
 /** Start-line of MRCP message */
@@ -138,16 +134,24 @@ typedef struct __MrcpHeaderField {
 } MrcpHeaderField;
 
 
-// typedef struct __MrcpResource {
-//     /** MRCP resource identifier */
-//     std::size_t id;
-//     /** MRCP resource name */
-//     std::string name;
-//
-// } MrcpResource;
+typedef struct __MrcpResource {
+
+    __MrcpResource(std::size_t id, const char * name_start, std::size_t name_len):
+      id(id), name(name_start, name_len)
+    {}
+
+    /** MRCP resource identifier */
+    std::size_t id;
+    /** MRCP resource name */
+    std::string name;
+
+} MrcpResource;
 
 
 typedef struct __MrcpMessage {
+
+    __MrcpMessage() = default;
+
     /** Start-line of MRCP message */
     MrcpStartLine     start_line;
     /** Channel-identifier of MRCP message */
@@ -159,7 +163,11 @@ typedef struct __MrcpMessage {
 
     // /** Associated MRCP resource */
     // // const mrcp_resource_t *resource;
-    // MrcpResource resource;
+    std::unique_ptr<MrcpResource> resource;
+
+private:
+    __MrcpMessage(const __MrcpMessage &) = delete;
+    __MrcpMessage & operator=(const __MrcpMessage &) = delete;
 
 } MrcpMessage;
 
@@ -194,6 +202,9 @@ public:
             o << "{name:" << elem.name << ",value:" << elem.value << "}";
         }
         o << "},body:{" << m._msg.body << "}";
+        if (m._msg.resource) {
+            o << ",resource:{id:" << m._msg.resource->id << ",name:" << m._msg.resource->name << "}";
+        }
 
         return o;
     }
@@ -205,7 +216,9 @@ private:
 
 bool decode(const std::string & str, MrcpMessage & mrcpMessage);
 
+
 bool encode(const MrcpMessage & mrcpMessage, std::string & str);
+
 
 
 }   // namespace mrcp

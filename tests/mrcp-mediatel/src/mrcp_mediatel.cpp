@@ -6,6 +6,7 @@
 
 #include "apt_log.h"
 #include "apt_pool.h"
+#include "mrcp_resource.h"
 #include "mrcp_resource_loader.h"
 #include "mrcp_resource_factory.h"
 #include "mrcp_message.h"
@@ -29,8 +30,10 @@ typedef struct __MrcpCommon {
 
 typedef struct __MrcpParserWrapper {
 
-    __MrcpParserWrapper(apr_pool_t * pool, mrcp_parser_t * parser):
-      _pool(pool), _parser(parser)
+    explicit __MrcpParserWrapper(MrcpCommon * common):
+      _common(common),
+      _pool(apt_subpool_create(_common->_pool)),    // create sub pool
+      _parser(mrcp_parser_create(_common->_factory, _pool))
     {}
 
     ~__MrcpParserWrapper() {
@@ -38,7 +41,8 @@ typedef struct __MrcpParserWrapper {
         apr_pool_destroy(_pool);
     }
 
-    apr_pool_t * _pool;
+    MrcpCommon * _common;
+    apr_pool_t * _pool;   // sub pool
     mrcp_parser_t * _parser;
 
 } MrcpParserWrapper;
@@ -46,8 +50,11 @@ typedef struct __MrcpParserWrapper {
 
 typedef struct __MrcpGeneratorWrapper {
 
-    __MrcpGeneratorWrapper(apr_pool_t * pool, mrcp_generator_t * generator):
-      _pool(pool), _generator(generator)
+    // explicit __MrcpGeneratorWrapper(apr_pool_t * pool, mrcp_generator_t * generator):
+    explicit __MrcpGeneratorWrapper(MrcpCommon * common):
+      _common(common),
+      _pool(apt_subpool_create(_common->_pool)),  // create sub pool
+      _generator(mrcp_generator_create(_common->_factory, _pool))
     {}
 
     ~__MrcpGeneratorWrapper() {
@@ -55,7 +62,8 @@ typedef struct __MrcpGeneratorWrapper {
         apr_pool_destroy(_pool);
     }
 
-    apr_pool_t * _pool;
+    MrcpCommon * _common;
+    apr_pool_t * _pool;   // sub pool
     mrcp_generator_t * _generator;
 
 } MrcpGeneratorWrapper;
@@ -110,6 +118,14 @@ std::unique_ptr<MrcpCommon> init_mrcp_common_locked() {
         return {};
   	}
 
+    // // MRCP_DECLARE(mrcp_resource_t*) mrcp_resource_get(const mrcp_resource_factory_t *resource_factory, mrcp_resource_id resource_id)
+    // std::size_t tmp_id(0);
+    // const mrcp_resource_t * tmp_ptr = mrcp_resource_get(tmp->_factory, tmp_id);
+    // while (tmp_ptr != NULL) {
+    //     _res_v.push_back(tmp_ptr);
+    //     _res_m.insert({std::string(tmp_ptr->name.buf, tmp_ptr->name.length), tmp_ptr});
+    // }
+
     return tmp;
 }
 
@@ -119,11 +135,7 @@ std::unique_ptr<MrcpParserWrapper> createMrcpParser() {
     std::lock_guard<std::mutex> lock(s_mrcp_mutex);
 
     if (s_mrcp_common) {
-        // create sub pool
-        apr_pool_t * pool = apt_subpool_create(s_mrcp_common->_pool);
-        return std::make_unique<MrcpParserWrapper>(
-            pool, mrcp_parser_create(s_mrcp_common->_factory, pool)
-        );
+        return std::make_unique<MrcpParserWrapper>(s_mrcp_common.get());
     }
 
     return {};
@@ -135,11 +147,7 @@ std::unique_ptr<MrcpGeneratorWrapper> createMrcpGenerator() {
     std::lock_guard<std::mutex> lock(s_mrcp_mutex);
 
     if (s_mrcp_common) {
-        // create sub pool
-        apr_pool_t * pool = apt_subpool_create(s_mrcp_common->_pool);
-        return std::make_unique<MrcpGeneratorWrapper>(
-            pool, mrcp_generator_create(s_mrcp_common->_factory, pool)
-        );
+        return std::make_unique<MrcpGeneratorWrapper>(s_mrcp_common.get());
     }
 
     return {};
@@ -205,6 +213,18 @@ bool parseMrcpMessageChannelId(mrcp_message_t * message, MrcpMessage & mrcpMessa
 }
 
 
+static
+bool parseMrcpMessageResource(mrcp_message_t * message, MrcpMessage & mrcpMessage) {
+    if (message->resource) {
+        mrcpMessage.resource = std::make_unique<MrcpResource>(
+            message->resource->id, message->resource->name.buf, message->resource->name.length
+        );
+    }
+
+    return true;
+}
+
+
 bool initialize() {
 
     std::lock_guard<std::mutex> lock(s_mrcp_mutex);
@@ -262,14 +282,92 @@ bool decode(const std::string & str, MrcpMessage & mrcpMessage) {
     parseMrcpMessageHeader(message, mrcpMessage);
     if (message->body.buf && message->body.length)
         mrcpMessage.body.assign(message->body.buf, message->body.length);
+    parseMrcpMessageResource(message, mrcpMessage);
 
     return true;
 }
 
 
-bool encode(const MrcpMessage & mrcpMessage, std::string & str) {
+
+
+// /** Enumeration of MRCP resource types */
+// enum class MrcpResourceType {
+// 	MRCP_SYNTHESIZER_RESOURCE, /**< Synthesizer resource */
+// 	MRCP_RECOGNIZER_RESOURCE,  /**< Recognizer resource */
+// 	MRCP_RECORDER_RESOURCE,    /**< Recorder resource */
+// 	MRCP_VERIFIER_RESOURCE,    /**< Verifier resource */
+//
+// 	MRCP_RESOURCE_TYPE_COUNT   /**< Number of resources */
+// };
+
+
+// /** Destroy MRCP message */
+// MRCP_DECLARE(void) mrcp_message_destroy(mrcp_message_t *message)
+// {
+// 	apt_string_reset(&message->body);
+// 	mrcp_message_header_destroy(&message->header);
+// }
+
+struct __MrcpMessageWrapper {
+
+} MrcpMessageWrapper;
+
+
+
+bool encodeRequest(const MrcpGeneratorWrapper & wrapper, mrcp_resource_t * resource, const MrcpMessage & mrcpMessage, std::string & str) {
+
+    message = mrcp_request_create(resource, MRCP_VERSION_2, SYNTHESIZER_SPEAK, pool);
+    if(message) {
+        /* set transparent header fields */
+        apt_header_field_t *header_field;
+        header_field = apt_header_field_create_c("Content-Type",SAMPLE_CONTENT_TYPE,message->pool);
+        if(header_field) {
+        	apt_log(APT_LOG_MARK,APT_PRIO_INFO,"Set %s: %s",header_field->name.buf,header_field->value.buf);
+        	mrcp_message_header_field_add(message,header_field);
+        }
+
+        header_field = apt_header_field_create_c("Voice-Age",SAMPLE_VOICE_AGE,message->pool);
+        if(header_field) {
+        	apt_log(APT_LOG_MARK,APT_PRIO_INFO,"Set %s: %s",header_field->name.buf,header_field->value.buf);
+        	mrcp_message_header_field_add(message,header_field);
+        }
+
+        /* set message body */
+        apt_log(APT_LOG_MARK,APT_PRIO_INFO,"Set Body: %s",SAMPLE_CONTENT);
+        apt_string_assign(&message->body,SAMPLE_CONTENT,message->pool);
+    }
+    return message;
+
 
     return true;
+}
+
+
+
+bool encode(const MrcpMessage & mrcpMessage, std::string & str) {
+
+    if (mrcpMessage.start_line.version != MrcpVersion::MRCP_VERSION_2)
+        return false;
+
+    std::unique_ptr<MrcpGeneratorWrapper> wrapper(createMrcpGenerator());
+    if (!wrapper)
+        return false;
+
+    apt_str_t resource_name;
+    resource_name.buf     = const_cast<char *>(mrcpMessage.channel_id.resource_name.c_str());
+    resource_name.length  = mrcpMessage.channel_id.resource_name.size();
+    mrcp_resource_t * resource = mrcp_resource_find(wrapper->_common->_factory, &resource_name);
+    if (resource == NULL)
+        return false;
+
+
+    if (e2i(mrcpMessage.start_line.message_type) == MRCP_MESSAGE_TYPE_REQUEST) {
+        return encodeRequest(*wrapper, resource, mrcpMessage, str);
+    }
+
+
+
+    return false;
 }
 
 

@@ -106,6 +106,12 @@ int main(int argc, const char * const *argv)
         bool res = mrcp::decode(elem.second, msg);
         std::cout << "TEST: mrcp::decode res = " << std::boolalpha << res << std::endl;
         std::cout << "TEST: MrcpMessage =\n" << mrcp::MrcpMessageManip(msg) << std::endl;
+
+        // encoding
+        std::string resultStr;
+        res = mrcp::encode(msg, resultStr);
+        std::cout << "TEST: ------ encoding" << std::endl;
+        std::cout << "TEST: mrcp::encode res = " << std::boolalpha << res << std::endl;
     }
 
     // mrcp::MrcpMessage msg;
