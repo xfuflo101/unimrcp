@@ -261,9 +261,9 @@ static constexpr std::size_t RX_BUFFER_SIZE(64);
 static constexpr std::size_t TX_BUFFER_SIZE(64);
 
 
-typedef struct __BufferHelper {
+typedef struct __ReadBufferHelper {
 
-    __BufferHelper(const char * buf, std::size_t len):
+    __ReadBufferHelper(const char * buf, std::size_t len):
         _start(buf), _end(buf+len), _pos(buf)
     {}
 
@@ -286,7 +286,7 @@ typedef struct __BufferHelper {
     const char * const _end;
     const char * _pos;
 
-} BufferHelper;
+} ReadBufferHelper;
 
 
 
@@ -295,41 +295,41 @@ typedef struct __BufferHelper {
 // APT_MESSAGE_STATUS_INVALID
 
 
-static 
+static
 mrcp_message_t * decode_buf(const MrcpParserWrapper & wrapper, const char * src_buf, std::size_t src_len) {
 
-    BufferHelper h(src_buf, src_len);
+    ReadBufferHelper rbh(src_buf, src_len);
 
-	char rx_buffer[RX_BUFFER_SIZE+1];
-	apt_text_stream_t stream;
+    char rx_buffer[RX_BUFFER_SIZE+1];
+    apt_text_stream_t stream;
 
-	apr_size_t length;
-	apr_size_t offset;
+    apr_size_t length;
+    apr_size_t offset;
 
-	mrcp_message_t *message;
+    mrcp_message_t *message;
 
-	apt_text_stream_init(&stream, rx_buffer, RX_BUFFER_SIZE);
+    apt_text_stream_init(&stream, rx_buffer, RX_BUFFER_SIZE);
 
-	do {
-		/* calculate offset remaining from the previous receive / if any */
-		offset = stream.pos - stream.text.buf;
-		/* calculate available length */
-		length = RX_BUFFER_SIZE - offset;
+    do {
+        /* calculate offset remaining from the previous receive / if any */
+        offset = stream.pos - stream.text.buf;
+        /* calculate available length */
+        length = RX_BUFFER_SIZE - offset;
 
-        length = h.read(stream.pos, length);
-		if(!length) {
-			break;
-		}
+        length = rbh.read(stream.pos, length);
+        if(!length) {
+            break;
+        }
 
-		/* calculate actual length of the stream */
-		stream.text.length = offset + length;
-		stream.pos[length] = '\0';
-		// apt_log(APT_LOG_MARK,APT_PRIO_INFO,"Parse MRCPv2 Data [%"APR_SIZE_T_FMT" bytes]\n%s",length,stream.pos);
+        /* calculate actual length of the stream */
+        stream.text.length = offset + length;
+        stream.pos[length] = '\0';
+        // apt_log(APT_LOG_MARK,APT_PRIO_INFO,"Parse MRCPv2 Data [%"APR_SIZE_T_FMT" bytes]\n%s",length,stream.pos);
 
-		/* reset pos */
-		apt_text_stream_reset(&stream);
-		
-    	const apt_message_status_e msg_status = mrcp_parser_run(wrapper._parser, &stream, &message);
+        /* reset pos */
+        apt_text_stream_reset(&stream);
+
+        const apt_message_status_e msg_status = mrcp_parser_run(wrapper._parser, &stream, &message);
         if (msg_status == APT_MESSAGE_STATUS_COMPLETE)
             return message;
         else if (msg_status == APT_MESSAGE_STATUS_INVALID) {
@@ -342,12 +342,12 @@ mrcp_message_t * decode_buf(const MrcpParserWrapper & wrapper, const char * src_
             return NULL;
         }
 
-		/* scroll remaining stream */
-		apt_text_stream_scroll(&stream);
-	}
-	while(h.remainder_len());
+        /* scroll remaining stream */
+        apt_text_stream_scroll(&stream);
+    }
+    while(rbh.remainder_len());
 
-	return NULL;
+    return NULL;
 }
 
 
@@ -488,45 +488,44 @@ typedef struct __AptStrHelper : public apt_str_t {
 } AptStrHelper;
 
 
-static 
-bool encode_to_buf(const MrcpGeneratorWrapper & wrapper, mrcp_message_t *message, std::vector<char> & outVec) {
+template<typename T>
+static
+bool encode_to_buf(const MrcpGeneratorWrapper & wrapper, mrcp_message_t *message, T inserter) {
 
     char tx_buffer[TX_BUFFER_SIZE+1];
 
-	apt_text_stream_t stream;
-	apt_message_status_e result;
+    apt_text_stream_t stream;
+    apt_message_status_e result;
 
-	do {
-		apt_text_stream_init(&stream, tx_buffer, TX_BUFFER_SIZE);
-		result = mrcp_generator_run(wrapper._generator, message, &stream);
-		if(result == APT_MESSAGE_STATUS_INVALID) {
-
+    do {
+        apt_text_stream_init(&stream, tx_buffer, TX_BUFFER_SIZE);
+        result = mrcp_generator_run(wrapper._generator, message, &stream);
+        if(result == APT_MESSAGE_STATUS_INVALID) {
             // TODO - log here
-			// apt_obj_log(APT_LOG_MARK,APT_PRIO_WARNING,channel->log_obj,"Failed to Generate MRCPv2 Data %s",
-			// 	connection->id);
+            // apt_obj_log(APT_LOG_MARK,APT_PRIO_WARNING,channel->log_obj,"Failed to Generate MRCPv2 Data %s",
+            // 	connection->id);
             return false;
         }
 
-        // outVec.insert(outVec.end(), stream.text.buf, stream.pos - stream.text.buf); 
-        outVec.insert(outVec.end(), stream.text.buf, stream.pos); 
-	}
-	while(result == APT_MESSAGE_STATUS_INCOMPLETE);
+        std::copy(stream.text.buf, stream.pos, inserter);
+    }
+    while(result == APT_MESSAGE_STATUS_INCOMPLETE);
 
-	return true;
+    return true;
 }
 
 
 static
 bool find_method_id_by_name(mrcp_resource_t * resource, mrcp_version_e version, const AptStrHelper & method_name, mrcp_method_id & out_id) {
 
-	mrcp_method_id id = apt_string_table_id_find(
-        resource->get_method_str_table(version),
-        resource->method_count,
-        &method_name
+    mrcp_method_id id = apt_string_table_id_find(
+          resource->get_method_str_table(version),
+          resource->method_count,
+          &method_name
     );
 
-	if(id >= resource->method_count)
-		return false;
+    if(id >= resource->method_count)
+        return false;
 
     out_id = id;
     return true;
@@ -546,9 +545,9 @@ bool find_method_id_by_name(mrcp_resource_t * resource, mrcp_version_e version, 
 // /* Find the id associated with a given string from the table */
 // APT_DECLARE(apr_size_t) apt_string_table_id_find(const apt_str_table_item_t table[], apr_size_t size, const apt_str_t *value)
 
-
+template<typename T>
 static
-bool encodeRequest(const MrcpGeneratorWrapper & wrapper, mrcp_resource_t * resource, mrcp_version_e version, const MrcpMessage & mrcpMessage, std::vector<char> & outVec) {
+bool encodeRequest(const MrcpGeneratorWrapper & wrapper, mrcp_resource_t * resource, mrcp_version_e version, const MrcpMessage & mrcpMessage, T inserter) {
 
     mrcp_method_id method_id;
     if (!find_method_id_by_name(resource, version, AptStrHelper(mrcpMessage.start_line.method_name), method_id))
@@ -568,7 +567,7 @@ bool encodeRequest(const MrcpGeneratorWrapper & wrapper, mrcp_resource_t * resou
         if(!header_field) {
             // TODO - log error here
             return false;
-        }        
+        }
         if (mrcp_message_header_field_add(message,header_field) == FALSE) {
             // TODO - log error here
             return false;
@@ -604,12 +603,13 @@ bool encodeRequest(const MrcpGeneratorWrapper & wrapper, mrcp_resource_t * resou
     // return message;
 
 
-    return encode_to_buf(wrapper, message, outVec);
+    return encode_to_buf(wrapper, message, inserter);
 }
 
 
-
-bool encode(const MrcpMessage & mrcpMessage, std::vector<char> & outVec) {
+template<typename T>
+static
+bool encodeImpl(const MrcpMessage & mrcpMessage, T inserter) {
 
     const mrcp_version_e version(static_cast<mrcp_version_e>(e2i(mrcpMessage.start_line.version)));
     if (version != MRCP_VERSION_2)
@@ -626,13 +626,20 @@ bool encode(const MrcpMessage & mrcpMessage, std::vector<char> & outVec) {
 
 
     if (e2i(mrcpMessage.start_line.message_type) == MRCP_MESSAGE_TYPE_REQUEST) {
-        return encodeRequest(*wrapper, resource, version, mrcpMessage, outVec);
+        return encodeRequest(*wrapper, resource, version, mrcpMessage, inserter);
     }
-
 
     return false;
 }
 
 
+bool encode(const MrcpMessage & mrcpMessage, std::vector<char> & outVec) {
+    return encodeImpl(mrcpMessage, std::back_inserter(outVec));
+}
+
+
+bool encode(const MrcpMessage & mrcpMessage, std::string & outStr) {
+    return encodeImpl(mrcpMessage, std::back_inserter(outStr));
+}
 
 }    // namespace mrcp
