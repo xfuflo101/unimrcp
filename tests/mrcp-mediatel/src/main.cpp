@@ -18,48 +18,45 @@
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <map>
 
 #include "mrcp_mediatel.h"
 
 
-const char * test_recognize_msg = ""
-"MRCP/2.0 903 RECOGNIZE 543257\r\n"
-"Channel-Identifier:32AECB23433801@speechrecog\r\n"
-"Confidence-Threshold:0.9\r\n"
-"Content-Type:application/srgs+xml\r\n"
-"Content-ID:<request1@form-level.store>\r\n"
-"Content-Length:702\r\n"
-"\r\n"
-"<?xml version=\"1.0\"?>\r\n"
-"\r\n"
-"<!-- the default grammar language is US English -->\r\n"
-"<grammar xmlns=\"http://www.w3.org/2001/06/grammar\"\r\n"
-"        xml:lang=\"en-US\" version=\"1.0\" root=\"request\">\r\n"
-"\r\n"
-"<!-- single language attachment to tokens -->\r\n"
-"     <rule id=\"yes\">\r\n"
-"           <one-of>\r\n"
-"                 <item xml:lang=\"fr-CA\">oui</item>\r\n"
-"                 <item xml:lang=\"en-US\">yes</item>\r\n"
-"           </one-of>\r\n"
-"     </rule>\r\n"
-"\r\n"
-"<!-- single language attachment to a rule expansion -->\r\n"
-"     <rule id=\"request\">\r\n"
-"           may I speak to\r\n"
-"           <one-of xml:lang=\"fr-CA\">\r\n"
-"                 <item>Michel Tremblay</item>\r\n"
-"                 <item>Andre Roy</item>\r\n"
-"           </one-of>\r\n"
-"     </rule>\r\n"
-"</grammar>"
-;
+#define TEST_EX(x, text)          \
+    if (!(x)) {                   \
+        std::stringstream __ss;   \
+        __ss << text;             \
+        throw std::runtime_error(__ss.str()); } else ((void)0)
 
-// std::vector< std::pair<std::string, std::string> >
-// void
-std::vector< std::pair<std::string, std::string> >
-read_all_files(const std::string & dir_path) {
-    std::vector< std::pair<std::string, std::string> > out_vct;
+
+static
+bool endsWith(std::string_view str, std::string_view suffix) {
+    return str.size() >= suffix.size() && 0 == str.compare(str.size()-suffix.size(), suffix.size(), suffix);
+}
+
+static
+bool removeSuffix(std::string & str, std::string_view suffix) {
+    if (!endsWith(str, suffix))
+        return false;
+
+    std::string_view tmp_sv(str);
+    tmp_sv.remove_suffix(suffix.size());
+    str.assign(tmp_sv);
+    return true;
+}
+
+
+struct TestUnit {
+    std::string msg;
+    std::string msg_hdr_space;
+};
+
+
+std::map<std::string, TestUnit> testUnits;
+
+
+void initTestUnits(const std::string & dir_path) {
 
     for (const auto& entry : std::filesystem::directory_iterator(dir_path)) {
         const std::filesystem::path & path = entry.path();
@@ -75,48 +72,67 @@ read_all_files(const std::string & dir_path) {
         }
 
         // Read contents
-        out_vct.emplace_back(
-            path.filename(),
-            std::string{std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()}
-        );
+        std::string value{std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
 
         // Close the file
         file.close();
-    }
 
-    return out_vct;
+        std::string name = path.filename();
+        if (removeSuffix(name, ".hdr_space")) {
+            testUnits[name].msg_hdr_space = value;
+        } else {
+            testUnits[name].msg = value;
+        }
+    }
 }
 
+
+static
+bool runTest(std::string_view name, std::string_view msgStr, std::string_view templStr) {
+    std::cout << std::endl;
+    std::cout << "TEST: ===============================================" << std::endl;
+    std::cout << "TEST: decoding file = " << name << std::endl;
+    std::cout << msgStr << std::endl;
+    std::cout << "\nTEST: ---DECODING---" << std::endl;
+    mrcp::MrcpMessage msg;
+    bool res = mrcp::decode(msgStr.data(), msgStr.size(), msg);
+    std::cout << "TEST: mrcp::decode res = " << std::boolalpha << res << std::endl;
+    std::cout << "TEST: MrcpMessage =\n" << mrcp::MrcpMessageManip(msg) << std::endl;
+
+    // encoding
+    std::string resultStr;
+    res = mrcp::encode(msg, resultStr);
+    std::cout << "\nTEST: ---ENCODING---" << std::endl;
+    std::cout << "TEST: mrcp::encode res = " << std::boolalpha << res << std::endl;
+    bool decode_encode_equal = (templStr == resultStr);
+    std::cout << "TEST: decode_encode_equal = " << std::boolalpha << decode_encode_equal << "; templ_len = " << templStr.size() << "; result_len = " << resultStr.size() << std::endl;
+    if (res) {
+        // std::copy(resultVec.cbegin(), resultVec.cend(), std::ostream_iterator<char>(std::cout, ""));
+        std::cout << "TEST: resultStr\n" << resultStr << std::endl;
+    }
+
+    return true;
+}
 
 
 int main(int argc, const char * const *argv)
 {
-    /* one time mrcp global initialization */
     if(!mrcp::initialize()) {
+      /* one time mrcp global initialization */
         std::cout << "TEST: mrcp::initialize() FAILED" << std::endl;
         return 0;
     }
 
-    const std::vector< std::pair<std::string, std::string> > & vct(read_all_files("v2"));
+    initTestUnits("v2");
+    TEST_EX(!testUnits.empty(), "testUnits is emprty");
 
-    for (const auto & elem : vct) {
-        std::cout << std::endl;
-        std::cout << "TEST: ===============================================" << std::endl;
-        std::cout << "TEST: decoding file = " << elem.first << std::endl;
-        std::cout << elem.second << std::endl;
-        std::cout << "TEST: ---DECODING---" << std::endl;
-        mrcp::MrcpMessage msg;
-        bool res = mrcp::decode(elem.second.c_str(), elem.second.size(), msg);
-        std::cout << "TEST: mrcp::decode res = " << std::boolalpha << res << std::endl;
-        std::cout << "TEST: MrcpMessage =\n" << mrcp::MrcpMessageManip(msg) << std::endl;
-
-        // encoding
-        std::vector<char> resultVec;
-        res = mrcp::encode(msg, resultVec);
-        std::cout << "TEST: ---ENCODING---" << std::endl;
-        std::cout << "TEST: mrcp::encode res = " << std::boolalpha << res << std::endl;
-        if (res)
-            std::copy(resultVec.cbegin(), resultVec.cend(), std::ostream_iterator<char>(std::cout, ""));        
+    for (const auto & elem : testUnits) {
+        if (elem.second.msg_hdr_space.empty())
+            runTest(elem.first, elem.second.msg, elem.second.msg);
+        else {
+            runTest(elem.first, elem.second.msg, elem.second.msg_hdr_space);
+            runTest(elem.first + ".hdr_space", elem.second.msg_hdr_space, elem.second.msg_hdr_space);
+        }
     }
 
     // mrcp::MrcpMessage msg;

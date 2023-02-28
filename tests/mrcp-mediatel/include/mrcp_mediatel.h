@@ -84,6 +84,15 @@ constexpr std::string_view MRCP_VERIFIER_RESOURCE_SV    {"speakverify"};  /**< V
 
 /** Start-line of MRCP message */
 typedef struct __MrcpStartLine {
+    __MrcpStartLine():
+      message_type(MrcpMessageType::MRCP_MESSAGE_TYPE_UNKNOWN),
+      version(MrcpVersion::MRCP_VERSION_UNKNOWN),
+      length(0),
+      request_id(0),
+      status_code(MrcpStatusCode::MRCP_STATUS_CODE_UNKNOWN),
+      request_state(MrcpRequestState::MRCP_REQUEST_STATE_UNKNOWN)
+    {}
+
     /** MRCP message type */
     MrcpMessageType  message_type;
     /** Version of protocol in use */
