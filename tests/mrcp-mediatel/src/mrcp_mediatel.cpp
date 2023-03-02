@@ -120,14 +120,6 @@ std::unique_ptr<MrcpCommon> init_mrcp_common_locked() {
         return {};
   	}
 
-    // // MRCP_DECLARE(mrcp_resource_t*) mrcp_resource_get(const mrcp_resource_factory_t *resource_factory, mrcp_resource_id resource_id)
-    // std::size_t tmp_id(0);
-    // const mrcp_resource_t * tmp_ptr = mrcp_resource_get(tmp->_factory, tmp_id);
-    // while (tmp_ptr != NULL) {
-    //     _res_v.push_back(tmp_ptr);
-    //     _res_m.insert({std::string(tmp_ptr->name.buf, tmp_ptr->name.length), tmp_ptr});
-    // }
-
     return tmp;
 }
 
@@ -156,8 +148,8 @@ std::unique_ptr<MrcpGeneratorWrapper> createMrcpGenerator() {
 }
 
 
-static constexpr std::size_t RX_BUFFER_SIZE(50);
-static constexpr std::size_t TX_BUFFER_SIZE(250);
+static constexpr std::size_t RX_BUFFER_SIZE(350);
+static constexpr std::size_t TX_BUFFER_SIZE(350);
 
 
 typedef struct __ReadBufferHelper {
@@ -217,6 +209,7 @@ mrcp_message_t * decode_buf(const MrcpParserWrapper & wrapper, const char * src_
 
         length = rbh.read(stream.pos, length);
         if(!length) {
+            // TODO - log error here
             break;
         }
 
@@ -237,7 +230,7 @@ mrcp_message_t * decode_buf(const MrcpParserWrapper & wrapper, const char * src_
         }
 
         if(apt_text_is_eos(&stream) == FALSE) {
-            // TODO - log warning here !!!
+            // TODO - log error / warning here
             return NULL;
         }
 
@@ -303,107 +296,6 @@ bool parseMrcpMessageChannelId(mrcp_message_t * message, mrcp::MrcpMessage & mrc
 }
 
 
-static
-bool parseMrcpMessageResource(mrcp_message_t * message, mrcp::MrcpMessage & mrcpMessage) {
-    if (message->resource) {
-        mrcpMessage.resource = std::make_unique<mrcp::MrcpResource>(
-            message->resource->id, message->resource->name.buf, message->resource->name.length
-        );
-    }
-
-    return true;
-}
-
-
-
-
-// /** Enumeration of MRCP resource types */
-// enum class MrcpResourceType {
-// 	MRCP_SYNTHESIZER_RESOURCE, /**< Synthesizer resource */
-// 	MRCP_RECOGNIZER_RESOURCE,  /**< Recognizer resource */
-// 	MRCP_RECORDER_RESOURCE,    /**< Recorder resource */
-// 	MRCP_VERIFIER_RESOURCE,    /**< Verifier resource */
-//
-// 	MRCP_RESOURCE_TYPE_COUNT   /**< Number of resources */
-// };
-
-
-// /** Destroy MRCP message */
-// MRCP_DECLARE(void) mrcp_message_destroy(mrcp_message_t *message)
-// {
-// 	apt_string_reset(&message->body);
-// 	mrcp_message_header_destroy(&message->header);
-// }
-
-
-// /* Get the string by a given id. */
-// APT_DECLARE(const apt_str_t*) apt_string_table_str_get(const apt_str_table_item_t table[], apr_size_t size, apr_size_t id)
-// {
-// 	if(id < size) {
-// 		return &table[id].value;
-// 	}
-// 	return NULL;
-// }
-
-// /* Find the id associated with a given string from the table */
-// APT_DECLARE(apr_size_t) apt_string_table_id_find(const apt_str_table_item_t table[], apr_size_t size, const apt_str_t *value)
-
-
-
-// static apt_bool_t mrcp_client_agent_messsage_send(mrcp_connection_agent_t *agent, mrcp_control_channel_t *channel, mrcp_message_t *message)
-// {
-// 	apt_bool_t status = FALSE;
-// 	mrcp_connection_t *connection = channel->connection;
-// 	apt_text_stream_t stream;
-// 	apt_message_status_e result;
-
-// 	if(!connection || !connection->sock) {
-// 		apt_obj_log(APT_LOG_MARK,APT_PRIO_WARNING,channel->log_obj,"Null MRCPv2 Connection " APT_SIDRES_FMT,MRCP_MESSAGE_SIDRES(message));
-// 		mrcp_client_agent_request_cancel(agent,channel,message);
-// 		return FALSE;
-// 	}
-
-// 	do {
-// 		apt_text_stream_init(&stream,connection->tx_buffer,connection->tx_buffer_size);
-// 		result = mrcp_generator_run(connection->generator,message,&stream);
-// 		if(result != APT_MESSAGE_STATUS_INVALID) {
-// 			stream.text.length = stream.pos - stream.text.buf;
-// 			*stream.pos = '\0';
-
-// 			apt_obj_log(APT_LOG_MARK,APT_PRIO_INFO,channel->log_obj,"Send MRCPv2 Data %s [%"APR_SIZE_T_FMT" bytes]\n%.*s",
-// 				connection->id,
-// 				stream.text.length,
-// 				connection->verbose == TRUE ? stream.text.length : 0,
-// 				stream.text.buf);
-
-// 			if(apr_socket_send(connection->sock,stream.text.buf,&stream.text.length) == APR_SUCCESS) {
-// 				status = TRUE;
-// 			}
-// 			else {
-// 				apt_obj_log(APT_LOG_MARK,APT_PRIO_WARNING,channel->log_obj,"Failed to Send MRCPv2 Data %s",
-// 					connection->id);
-// 			}
-// 		}
-// 		else {
-// 			apt_obj_log(APT_LOG_MARK,APT_PRIO_WARNING,channel->log_obj,"Failed to Generate MRCPv2 Data %s",
-// 				connection->id);
-// 		}
-// 	}
-// 	while(result == APT_MESSAGE_STATUS_INCOMPLETE);
-
-// 	if(status == TRUE) {
-// 		channel->active_request = message;
-// 		if(channel->request_timer && agent->request_timeout) {
-// 			apt_timer_set(channel->request_timer,agent->request_timeout);
-// 		}
-// 	}
-// 	else {
-// 		mrcp_client_agent_request_cancel(agent,channel,message);
-// 	}
-// 	return status;
-// }
-
-
 typedef struct __AptStrHelper : public apt_str_t {
 
     explicit __AptStrHelper(const std::string & str) {
@@ -417,34 +309,6 @@ typedef struct __AptStrHelper : public apt_str_t {
 static
 void apt_string_assign_impl(const MrcpGeneratorWrapper & wrapper, apt_str_t *dst, const std::string & src) {
     apt_string_assign_n(dst, src.c_str(), src.size(), wrapper._pool);
-}
-
-
-
-template<typename T>
-static
-bool encode_to_buf(const MrcpGeneratorWrapper & wrapper, mrcp_message_t *message, T inserter) {
-
-    char tx_buffer[TX_BUFFER_SIZE+1];
-
-    apt_text_stream_t stream;
-    apt_message_status_e result;
-
-    do {
-        apt_text_stream_init(&stream, tx_buffer, TX_BUFFER_SIZE);
-        result = mrcp_generator_run(wrapper._generator, message, &stream);
-        if(result == APT_MESSAGE_STATUS_INVALID) {
-            // TODO - log here
-            // apt_obj_log(APT_LOG_MARK,APT_PRIO_WARNING,channel->log_obj,"Failed to Generate MRCPv2 Data %s",
-            // 	connection->id);
-            return false;
-        }
-
-        std::copy(stream.text.buf, stream.pos, inserter);
-    }
-    while(result == APT_MESSAGE_STATUS_INCOMPLETE);
-
-    return true;
 }
 
 
@@ -464,139 +328,45 @@ bool find_method_id_by_name(mrcp_resource_t * resource, mrcp_version_e version, 
     return true;
 }
 
-	// if(message->start_line.message_type == MRCP_MESSAGE_TYPE_REQUEST) {
-	// 	const apt_str_t *name = apt_string_table_str_get(
-	// 		resource->get_method_str_table(message->start_line.version),
-	// 		resource->method_count,
-	// 		message->start_line.method_id);
-	// 	if(!name) {
-	// 		return FALSE;
-	// 	}
-	// 	message->start_line.method_name = *name;
-	// }
 
-// /* Find the id associated with a given string from the table */
-// APT_DECLARE(apr_size_t) apt_string_table_id_find(const apt_str_table_item_t table[], apr_size_t size, const apt_str_t *value)
-
-
-////////////////////////////////////////////////////////////////////////////////
-
-
-/** MRCP generic header */
-// struct mrcp_generic_header_t {
-// 	/** Indicates the list of request-ids to which it should apply */
-// 	mrcp_request_id_list_t active_request_id_list;
-// 	/** Helps the resource receiving the event, proxied by the client,
-// 	to decide if this event has been processed through a direct interaction of the resources */
-// 	apt_str_t              proxy_sync_id;
-// 	/** Specifies the acceptable character set for entities returned in the response or events associated with this request */
-// 	apt_str_t              accept_charset;
-// 	/** Restricted to speech markup, grammar, recognition results, etc. */
-// 	apt_str_t              content_type;
-// 	/** Contains an ID or name for the content, by which it can be referred to */
-// 	apt_str_t              content_id;
-// 	/** May be used to specify the base URI for resolving relative URLs within the entity */
-// 	apt_str_t              content_base;
-// 	/** Indicates what additional content coding has been applied to the entity-body */
-// 	apt_str_t              content_encoding;
-// 	/** Statement of the location of the resource corresponding to this particular entity at the time of the request */
-// 	apt_str_t              content_location;
-// 	/** Contains the length of the content of the message body */
-// 	apr_size_t             content_length;
-// 	/** Defines the default caching algorithms on the media server for the session or request */
-// 	apt_str_t              cache_control;
-// 	/** Sets the logging tag for logs generated by the media server */
-// 	apt_str_t              logging_tag;
-// 	/** Specifies the vendor specific parameters used by the media server */
-// 	apt_pair_arr_t        *vendor_specific_params;
-//
-// 	/** Additional header fields for MRCP v2 */
-// 	/** Specifies the acceptable media types set for entities returned in the response or events associated with this request */
-// 	apt_str_t              accept;
-// 	/** Defines the timeout for content that the server may need to fetch over the network */
-// 	apr_size_t             fetch_timeout;
-// 	/** Enables to synchronize the cookie store of MRCP v2 client and server */
-// 	apt_str_t              set_cookie;
-// 	/** Enables to synchronize the cookie store of MRCP v2 client and server */
-// 	apt_str_t              set_cookie2;
-// };
-
-#define HDR_APT_STR_TO_STREAM(ptr, name)        \
-    if (ptr->name.buf && ptr->name.length) {    \
-        o << "{" << #name << ":" << std::string(ptr->name.buf, ptr->name.length) << "},";   }
-
-
-class GenericHeaderManip {
-public:
-    explicit GenericHeaderManip(const mrcp_message_t *message): _p(mrcp_generic_header_get(message))
-    {}
-
-    friend std::ostream & operator<<(std::ostream & o, const GenericHeaderManip & m) {
-        if (!m._p) {
-            o << "NULL";
-        } else {
-
-            if (m._p->proxy_sync_id.buf && m._p->proxy_sync_id.length) {
-                o << "{proxy_sync_id:" << std::string(m._p->proxy_sync_id.buf, m._p->proxy_sync_id.length) << "},";
-            }
-
-            HDR_APT_STR_TO_STREAM(m._p, accept_charset)
-            HDR_APT_STR_TO_STREAM(m._p, content_type)
-            HDR_APT_STR_TO_STREAM(m._p, content_id)
-            HDR_APT_STR_TO_STREAM(m._p, content_base)
-            HDR_APT_STR_TO_STREAM(m._p, content_encoding)
-            HDR_APT_STR_TO_STREAM(m._p, content_location)
-            o << "{content_length:" << m._p->content_length << "},";
-            HDR_APT_STR_TO_STREAM(m._p, cache_control)
-            HDR_APT_STR_TO_STREAM(m._p, logging_tag)
-          // 	/** Specifies the vendor specific parameters used by the media server */
-          // 	apt_pair_arr_t        *vendor_specific_params;
-          //
-          // 	/** Additional header fields for MRCP v2 */
-            HDR_APT_STR_TO_STREAM(m._p, accept)
-            o << "{fetch_timeout:" << m._p->fetch_timeout << "},";
-            HDR_APT_STR_TO_STREAM(m._p, set_cookie)
-            HDR_APT_STR_TO_STREAM(m._p, set_cookie2)
-        }
-
-        return o;
-    }
-
-private:
-  // static APR_INLINE mrcp_generic_header_t* mrcp_generic_header_get(const mrcp_message_t *message)
-    const mrcp_generic_header_t * _p;
-};
-
-
-
-////////////////////////////////////////////////////////////////////////////////
-
-
-template<typename T>
 static
-bool encodeRequest(const MrcpGeneratorWrapper & wrapper, mrcp_resource_t * resource, mrcp_version_e version, const mrcp::MrcpMessage & mrcpMessage, T inserter) {
+bool find_event_id_by_name(mrcp_resource_t * resource, mrcp_version_e version, const AptStrHelper & event_name, mrcp_method_id & out_id) {
+
+    mrcp_method_id id = apt_string_table_id_find(
+          resource->get_event_str_table(version),
+          resource->event_count,
+          &event_name
+    );
+
+    if(id >= resource->event_count)
+        return false;
+
+    out_id = id;
+    return true;
+}
+
+
+static
+mrcp_message_t * createRequestBase(const MrcpGeneratorWrapper & wrapper, mrcp_resource_t * resource, mrcp_version_e version, const std::string & method_name, std::size_t request_id, const std::string & session_id) {
 
     mrcp_method_id method_id;
-    if (!find_method_id_by_name(resource, version, AptStrHelper(mrcpMessage.start_line.method_name), method_id))
-        return false;
+    if (!find_method_id_by_name(resource, version, AptStrHelper(method_name), method_id))
+        return NULL;
 
     mrcp_message_t * message = mrcp_request_create(resource, version, method_id, wrapper._pool);
-    if(!message)
-        return false;
-
-    message->start_line.request_id = mrcpMessage.start_line.request_id;
-
-    if (!mrcpMessage.channel_id.session_id.empty()) {
-        apt_string_assign_impl(wrapper, &message->channel_id.session_id, mrcpMessage.channel_id.session_id);
+    if (message) {
+        message->start_line.request_id = request_id;
+        apt_string_assign_impl(wrapper, &message->channel_id.session_id, session_id);
     }
 
-    // if (!mrcpMessage.channel_id.resource_name.empty()) {
-    //     apt_string_assign_impl(wrapper, &message->channel_id.resource_name, mrcpMessage.channel_id.resource_name);
-    // }
+    return message;
+}
+
+
+static
+bool addHeader(const MrcpGeneratorWrapper & wrapper, const mrcp::MrcpMessage & mrcpMessage, mrcp_message_t * message) {
 
     for (const auto & elem : mrcpMessage.header) {
-
-        std::cout << "TEST-ENCODE: add header [" << elem.name << ":" << elem.value << std::endl;
 
         AptStrHelper field_name(elem.name);
         AptStrHelper field_value(elem.value);
@@ -606,47 +376,149 @@ bool encodeRequest(const MrcpGeneratorWrapper & wrapper, mrcp_resource_t * resou
             // TODO - log error here
             return false;
         }
+
         if (mrcp_message_header_field_add(message, header_field) == FALSE) {
-            std::cout << "TEST-ENCODE: !!! mrcp_message_header_field_add FAILED !!!" << std::endl;
             // TODO - log error here
             return false;
 
         }
-
-        std::cout << "TEST-ENCODE: mrcp_message_header_field_add OK, id = " << header_field->id  << std::endl;
     }
 
-    std::cout << "TEST-ENCODE: after headers, generic headers\n" << GenericHeaderManip(message) << std::endl;
+    return true;
+}
+
+
+static
+mrcp_message_t * createRequest(const MrcpGeneratorWrapper & wrapper, mrcp_resource_t * resource, mrcp_version_e version, const mrcp::MrcpMessage & mrcpMessage) {
+
+    mrcp_message_t * message = createRequestBase(
+        wrapper, resource, version,
+        mrcpMessage.start_line.method_name,
+        mrcpMessage.start_line.request_id,
+        mrcpMessage.channel_id.session_id
+    );
+    if(!message) {
+        // TODO - log error here
+        return NULL;
+    }
+
+    if (!addHeader(wrapper, mrcpMessage, message)) {
+        // TODO - log error here
+        return NULL;
+    }
 
     if (!mrcpMessage.body.empty())
 	    apt_string_assign_impl(wrapper, &message->body, mrcpMessage.body);
 
-
-    // mrcpMessage.start_line.method_name
-    // mrcp_message_t * message = mrcp_request_create(resource, version, SYNTHESIZER_SPEAK, pool);
-    // if(message) {
-    //     /* set transparent header fields */
-    //     apt_header_field_t *header_field;
-    //     header_field = apt_header_field_create_c("Content-Type",SAMPLE_CONTENT_TYPE,message->pool);
-    //     if(header_field) {
-    //     	apt_log(APT_LOG_MARK,APT_PRIO_INFO,"Set %s: %s",header_field->name.buf,header_field->value.buf);
-    //     	mrcp_message_header_field_add(message,header_field);
-    //     }
-
-    //     header_field = apt_header_field_create_c("Voice-Age",SAMPLE_VOICE_AGE,message->pool);
-    //     if(header_field) {
-    //     	apt_log(APT_LOG_MARK,APT_PRIO_INFO,"Set %s: %s",header_field->name.buf,header_field->value.buf);
-    //     	mrcp_message_header_field_add(message,header_field);
-    //     }
-
-    //     /* set message body */
-    //     apt_log(APT_LOG_MARK,APT_PRIO_INFO,"Set Body: %s",SAMPLE_CONTENT);
-    //     apt_string_assign(&message->body,SAMPLE_CONTENT,message->pool);
-    // }
-    // return message;
+    return message;
+}
 
 
-    return encode_to_buf(wrapper, message, inserter);
+static
+mrcp_message_t * createResponse(const MrcpGeneratorWrapper & wrapper, mrcp_resource_t * resource, mrcp_version_e version, const mrcp::MrcpMessage & mrcpMessage) {
+
+    // stub request message to be used on event creation
+    mrcp_message_t * stub_request_message = createRequestBase(
+        wrapper, resource, version,
+        "SET-PARAMS",   // mrcpMessage.start_line.method_name,
+        mrcpMessage.start_line.request_id,
+        mrcpMessage.channel_id.session_id
+    );
+    if(!stub_request_message) {
+        std::cout << "TEST-ENCODE: create stub request message FAILED" << std::endl;
+        // TODO - log error here
+        return NULL;
+    }
+
+    mrcp_message_t * message = mrcp_response_create(stub_request_message, wrapper._pool);
+    if(!message) {
+        std::cout << "TEST-ENCODE: create response message FAILED" << std::endl;
+        // TODO - log error here
+        return NULL;
+    }
+
+    message->start_line.status_code = static_cast<mrcp_status_code_e>(e2i(mrcpMessage.start_line.status_code));
+    message->start_line.request_state = static_cast<mrcp_request_state_e>(e2i(mrcpMessage.start_line.request_state));
+
+    if (!addHeader(wrapper, mrcpMessage, message)) {
+        // TODO - log error here
+        return NULL;
+    }
+
+    if (!mrcpMessage.body.empty())
+	    apt_string_assign_impl(wrapper, &message->body, mrcpMessage.body);
+
+    return message;
+}
+
+
+static
+mrcp_message_t * createEvent(const MrcpGeneratorWrapper & wrapper, mrcp_resource_t * resource, mrcp_version_e version, const mrcp::MrcpMessage & mrcpMessage) {
+
+    // stub request message to be used on event creation
+    mrcp_message_t * stub_request_message = createRequestBase(
+        wrapper, resource, version,
+        "SET-PARAMS",
+        mrcpMessage.start_line.request_id,
+        mrcpMessage.channel_id.session_id
+    );
+    if(!stub_request_message) {
+        std::cout << "TEST-ENCODE: create stub request message FAILED" << std::endl;
+        // TODO - log error here
+        return NULL;
+    }
+
+    mrcp_method_id event_id;
+    if (!find_event_id_by_name(resource, version, AptStrHelper(mrcpMessage.start_line.method_name), event_id)) {
+        std::cout << "TEST-ENCODE: find_event_id_by_name FAILED" << std::endl;
+        // TODO - log error here
+        return NULL;
+    }
+
+    mrcp_message_t * message = mrcp_event_create(stub_request_message, event_id, wrapper._pool);
+    if(!message) {
+        std::cout << "TEST-ENCODE: create event message FAILED" << std::endl;
+        // TODO - log error here
+        return NULL;
+    }
+
+    message->start_line.request_state = static_cast<mrcp_request_state_e>(e2i(mrcpMessage.start_line.request_state));
+
+    if (!addHeader(wrapper, mrcpMessage, message)) {
+        // TODO - log error here
+        return NULL;
+    }
+
+    if (!mrcpMessage.body.empty())
+	    apt_string_assign_impl(wrapper, &message->body, mrcpMessage.body);
+
+    return message;
+}
+
+
+template<typename T>
+static
+bool encode_to_buf(const MrcpGeneratorWrapper & wrapper, mrcp_message_t *message, T inserter) {
+
+    char tx_buffer[TX_BUFFER_SIZE+1];
+
+    apt_text_stream_t stream;
+    apt_message_status_e result;
+
+    do {
+        apt_text_stream_init(&stream, tx_buffer, TX_BUFFER_SIZE);
+        result = mrcp_generator_run(wrapper._generator, message, &stream);
+        if(result == APT_MESSAGE_STATUS_INVALID) {
+            std::cout << "TEST-ENCODE: mrcp_generator_run FAILED" << std::endl;
+            // TODO - log error here
+            return false;
+        }
+
+        std::copy(stream.text.buf, stream.pos, inserter);
+    }
+    while(result == APT_MESSAGE_STATUS_INCOMPLETE);
+
+    return true;
 }
 
 
@@ -698,28 +570,18 @@ bool decode(const char * src_buf, std::size_t src_len, MrcpMessage & mrcpMessage
     if (!wrapper)
         return false;
 
-    // apt_text_stream_t stream;
-    // apt_text_stream_init(&stream, const_cast<char *>(str.c_str()), str.size());
-    // apt_text_stream_reset(&stream);
-
-    // mrcp_message_t *message;
-    // apt_message_status_e msg_status = mrcp_parser_run(wrapper->_parser, &stream, &message);
-    // if (apt_text_is_eos(&stream) == FALSE)
-    //     return false;
-
-    // if(msg_status != APT_MESSAGE_STATUS_COMPLETE)
-    //     return false;
-
     mrcp_message_t * message = decode_buf(*wrapper, src_buf, src_len);
-    if (!message)
+    if (!message) {
+        std::cout << "TEST-DECODE: !!! decode_buf FAILED !!!" << std::endl;
+        // TODO - log error here
         return false;
+    }
 
     parseMrcpMessageStartLine(message, mrcpMessage);
     parseMrcpMessageChannelId(message, mrcpMessage);
     parseMrcpMessageHeader(message, mrcpMessage);
     if (message->body.buf && message->body.length)
         mrcpMessage.body.assign(message->body.buf, message->body.length);
-    parseMrcpMessageResource(message, mrcpMessage);
 
     return true;
 }
@@ -742,12 +604,18 @@ bool encodeImpl(const MrcpMessage & mrcpMessage, T inserter) {
     if (resource == NULL)
         return false;
 
-
-    if (e2i(mrcpMessage.start_line.message_type) == MRCP_MESSAGE_TYPE_REQUEST) {
-        return encodeRequest(*wrapper, resource, version, mrcpMessage, inserter);
+    mrcp_message_t * message(NULL);
+    if (mrcpMessage.start_line.message_type == MrcpMessageType::MRCP_MESSAGE_TYPE_REQUEST) {
+        message = createRequest(*wrapper, resource, version, mrcpMessage);
+    } else if (mrcpMessage.start_line.message_type == MrcpMessageType::MRCP_MESSAGE_TYPE_RESPONSE) {
+        message = createResponse(*wrapper, resource, version, mrcpMessage);
+    } else if (mrcpMessage.start_line.message_type == MrcpMessageType::MRCP_MESSAGE_TYPE_EVENT) {
+        message = createEvent(*wrapper, resource, version, mrcpMessage);
+    } else {
+        // TODO - log error here
     }
 
-    return false;
+    return message ? encode_to_buf(*wrapper, message, inserter) : false;
 }
 
 

@@ -143,18 +143,18 @@ typedef struct __MrcpHeaderField {
 } MrcpHeaderField;
 
 
-typedef struct __MrcpResource {
-
-    __MrcpResource(std::size_t id, const char * name_start, std::size_t name_len):
-      id(id), name(name_start, name_len)
-    {}
-
-    /** MRCP resource identifier */
-    std::size_t id;
-    /** MRCP resource name */
-    std::string name;
-
-} MrcpResource;
+// typedef struct __MrcpResource {
+//
+//     __MrcpResource(std::size_t id, const char * name_start, std::size_t name_len):
+//       id(id), name(name_start, name_len)
+//     {}
+//
+//     /** MRCP resource identifier */
+//     std::size_t id;
+//     /** MRCP resource name */
+//     std::string name;
+//
+// } MrcpResource;
 
 
 typedef struct __MrcpMessage {
@@ -172,7 +172,7 @@ typedef struct __MrcpMessage {
 
     // /** Associated MRCP resource */
     // // const mrcp_resource_t *resource;
-    std::unique_ptr<MrcpResource> resource;
+    // std::unique_ptr<MrcpResource> resource;
 
 private:
     __MrcpMessage(const __MrcpMessage &) = delete;
@@ -211,9 +211,9 @@ public:
             o << "{name:" << elem.name << ",value:" << elem.value << "}";
         }
         o << "},body:{" << m._msg.body << "}";
-        if (m._msg.resource) {
-            o << ",resource:{id:" << m._msg.resource->id << ",name:" << m._msg.resource->name << "}";
-        }
+        // if (m._msg.resource) {
+        //     o << ",resource:{id:" << m._msg.resource->id << ",name:" << m._msg.resource->name << "}";
+        // }
 
         return o;
     }

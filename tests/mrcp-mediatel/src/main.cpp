@@ -48,6 +48,7 @@ bool removeSuffix(std::string & str, std::string_view suffix) {
 
 
 struct TestUnit {
+    std::string name;
     std::string msg;
     std::string msg_hdr_space;
 };
@@ -78,40 +79,64 @@ void initTestUnits(const std::string & dir_path) {
         file.close();
 
         std::string name = path.filename();
-        if (removeSuffix(name, ".hdr_space")) {
-            testUnits[name].msg_hdr_space = value;
+        const bool hdr_space(removeSuffix(name, ".hdr_space"));
+
+        TestUnit & tu(testUnits[name]);
+        tu.name = name;
+
+        if (hdr_space) {
+            tu.msg_hdr_space = value;
         } else {
-            testUnits[name].msg = value;
+            tu.msg = value;
         }
     }
 }
 
 
 static
-bool runTest(std::string_view name, std::string_view msgStr, std::string_view templStr) {
+void runTest(std::string_view name, std::string_view msgStr, std::string_view templStr) {
     std::cout << std::endl;
     std::cout << "TEST: ===============================================" << std::endl;
     std::cout << "TEST: decoding file = " << name << std::endl;
-    std::cout << msgStr << std::endl;
+    // std::cout << msgStr << std::endl;
     std::cout << "\nTEST: ---DECODING---" << std::endl;
+
     mrcp::MrcpMessage msg;
-    bool res = mrcp::decode(msgStr.data(), msgStr.size(), msg);
-    std::cout << "TEST: mrcp::decode res = " << std::boolalpha << res << std::endl;
-    std::cout << "TEST: MrcpMessage =\n" << mrcp::MrcpMessageManip(msg) << std::endl;
+    const bool decode_res = mrcp::decode(msgStr.data(), msgStr.size(), msg);
+    TEST_EX(decode_res, "decoding FAILED, name = " << name);
+
+    std::cout << "TEST: mrcp::decode res = " << std::boolalpha << decode_res << std::endl;
+    // std::cout << "TEST: MrcpMessage =\n" << mrcp::MrcpMessageManip(msg) << std::endl;
 
     // encoding
-    std::string resultStr;
-    res = mrcp::encode(msg, resultStr);
     std::cout << "\nTEST: ---ENCODING---" << std::endl;
-    std::cout << "TEST: mrcp::encode res = " << std::boolalpha << res << std::endl;
-    bool decode_encode_equal = (templStr == resultStr);
-    std::cout << "TEST: decode_encode_equal = " << std::boolalpha << decode_encode_equal << "; templ_len = " << templStr.size() << "; result_len = " << resultStr.size() << std::endl;
-    if (res) {
-        // std::copy(resultVec.cbegin(), resultVec.cend(), std::ostream_iterator<char>(std::cout, ""));
-        std::cout << "TEST: resultStr\n" << resultStr << std::endl;
+
+    std::string resultStr;
+    const bool encode_res = mrcp::encode(msg, resultStr);
+    TEST_EX(encode_res, "encoding FAILED, name = " << name);
+
+    std::cout << "TEST: mrcp::encode res = " << std::boolalpha << encode_res << std::endl;
+    if (encode_res) {
+        // std::cout << "TEST: resultStr\n" << resultStr << std::endl;
     }
 
-    return true;
+    //
+    const bool decode_encode_res = (templStr == resultStr);
+    TEST_EX(decode_encode_res, "decode_encode FAILED, name = " << name);
+
+    std::cout << "\nTEST: ---DECODING_ENCODING---" << std::endl;
+    std::cout << "TEST: decode_encode_res = " << std::boolalpha << decode_encode_res << "; templ_len = " << templStr.size() << "; result_len = " << resultStr.size() << std::endl;
+}
+
+
+static
+void runTest(const TestUnit & tu) {
+    if (tu.msg_hdr_space.empty())
+        runTest(tu.name, tu.msg, tu.msg);
+    else {
+        runTest(tu.name, tu.msg, tu.msg_hdr_space);
+        runTest(tu.name + ".hdr_space", tu.msg_hdr_space, tu.msg_hdr_space);
+    }
 }
 
 
@@ -127,21 +152,15 @@ int main(int argc, const char * const *argv)
     TEST_EX(!testUnits.empty(), "testUnits is emprty");
 
     for (const auto & elem : testUnits) {
-        if (elem.second.msg_hdr_space.empty())
-            runTest(elem.first, elem.second.msg, elem.second.msg);
-        else {
-            runTest(elem.first, elem.second.msg, elem.second.msg_hdr_space);
-            runTest(elem.first + ".hdr_space", elem.second.msg_hdr_space, elem.second.msg_hdr_space);
-        }
+        runTest(elem.second);
     }
 
-    // mrcp::MrcpMessage msg;
-    // bool res = mrcp::decode(test_recognize_msg, msg);
-    // std::cout << "TEST: mrcp::decode res = " << std::boolalpha << res << std::endl;
-    // std::cout << "TEST: MrcpMessage =\n" << mrcp::MrcpMessageManip(msg) << std::endl;
+    // runTest(testUnits["speak_resp.msg"]);
 
     /* final mrcp global termination */
     mrcp::terminate();
+
+    std::cout << "TEST: SUCCESS" << std::endl;
 
     return 0;
 }
