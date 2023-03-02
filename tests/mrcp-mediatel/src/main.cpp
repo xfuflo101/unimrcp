@@ -19,6 +19,7 @@
 #include <fstream>
 #include <iterator>
 #include <map>
+#include <thread>
 
 #include "mrcp_mediatel.h"
 
@@ -140,6 +141,36 @@ void runTest(const TestUnit & tu) {
 }
 
 
+static
+void runAllTestsOnce() {
+    for (const auto & elem : testUnits) {
+        runTest(elem.second);
+    }
+}
+
+
+static
+void runAllTestsN(std::size_t count) {
+
+    std::cout << "TEST: runAllTestsN called, count = " << count << ", id = " << std::this_thread::get_id() << std::endl;
+
+    while(count--)
+        runAllTestsOnce();
+}
+
+
+static
+void runAllTestsMT(std::size_t threadsCount, std::size_t repeatsCount) {
+    std::vector<std::thread> v;
+
+    for (std::size_t i = 0; i < threadsCount; ++i)
+        v.emplace_back(runAllTestsN, repeatsCount);
+
+    for (std::size_t i = 0; i < v.size(); ++i)
+        v[i].join();
+}
+
+
 int main(int argc, const char * const *argv)
 {
     if(!mrcp::initialize()) {
@@ -151,9 +182,9 @@ int main(int argc, const char * const *argv)
     initTestUnits("v2");
     TEST_EX(!testUnits.empty(), "testUnits is emprty");
 
-    for (const auto & elem : testUnits) {
-        runTest(elem.second);
-    }
+    runAllTestsOnce();
+
+    runAllTestsMT(100, 99999999999);
 
     // runTest(testUnits["speak_resp.msg"]);
 

@@ -143,20 +143,6 @@ typedef struct __MrcpHeaderField {
 } MrcpHeaderField;
 
 
-// typedef struct __MrcpResource {
-//
-//     __MrcpResource(std::size_t id, const char * name_start, std::size_t name_len):
-//       id(id), name(name_start, name_len)
-//     {}
-//
-//     /** MRCP resource identifier */
-//     std::size_t id;
-//     /** MRCP resource name */
-//     std::string name;
-//
-// } MrcpResource;
-
-
 typedef struct __MrcpMessage {
 
     __MrcpMessage() = default;
@@ -169,10 +155,6 @@ typedef struct __MrcpMessage {
     std::vector<MrcpHeaderField> header;
     /** Body of MRCP message */
     std::string       body;
-
-    // /** Associated MRCP resource */
-    // // const mrcp_resource_t *resource;
-    // std::unique_ptr<MrcpResource> resource;
 
 private:
     __MrcpMessage(const __MrcpMessage &) = delete;
