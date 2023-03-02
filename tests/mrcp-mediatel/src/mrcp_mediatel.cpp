@@ -148,8 +148,8 @@ std::unique_ptr<MrcpGeneratorWrapper> createMrcpGenerator() {
 }
 
 
-static constexpr std::size_t RX_BUFFER_SIZE(350);
-static constexpr std::size_t TX_BUFFER_SIZE(350);
+static constexpr std::size_t RX_BUFFER_SIZE(4096);
+static constexpr std::size_t TX_BUFFER_SIZE(4096);
 
 
 typedef struct __ReadBufferHelper {
